@@ -183,7 +183,7 @@ struct ContentView: View {
                 }
             }
 
-            Text("Keep Beam open while you watch. The video passes through your phone, so the film stops if Beam is closed or the phone locks.")
+            Text("The video passes through your phone. You can lock it or use other apps, but don't swipe Beam away until the film's finished.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

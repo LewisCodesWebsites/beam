@@ -175,8 +175,8 @@ final class Caster: ObservableObject {
         title = name
         position = 0
         duration = 0
-        UIApplication.shared.isIdleTimerDisabled = true
-        message = "Playing on \(tv.name). Keep Beam open while you watch."
+        KeepAlive.shared.start()
+        message = "Playing on \(tv.name). You can lock your phone; just don't swipe Beam away."
         remember(url.absoluteString)
     }
 
@@ -202,7 +202,7 @@ final class Caster: ObservableObject {
         _ = try? await SOAP.call("Stop", on: tv.avTransport, session: session)
         nowPlaying = nil
         transportState = "STOPPED"
-        UIApplication.shared.isIdleTimerDisabled = false
+        KeepAlive.shared.stop()
         message = "Stopped."
     }
 
