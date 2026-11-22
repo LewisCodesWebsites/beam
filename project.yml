@@ -1,0 +1,31 @@
+name: Beam
+options:
+  bundleIdPrefix: com.lewiscodes
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  Beam:
+    type: application
+    platform: iOS
+    sources: [Sources]
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: Beam
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSLocalNetworkUsageDescription: Beam looks for your TV on your wifi so it can send videos to it.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+          NSAllowsLocalNetworking: true
+        CFBundleURLTypes:
+          - CFBundleURLName: com.lewiscodes.beam
+            CFBundleURLSchemes: [beam, vlc, vlc-x-callback, infuse, outplayer]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lewiscodes.beam
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: NO
