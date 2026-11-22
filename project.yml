@@ -12,8 +12,8 @@ targets:
       path: Sources/Info.plist
       properties:
         CFBundleDisplayName: Beam
-        CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "1"
+        CFBundleShortVersionString: "1.1"
+        CFBundleVersion: "2"
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         NSLocalNetworkUsageDescription: Beam looks for your TV on your wifi so it can send videos to it.

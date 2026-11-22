@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UIKit
 
 @MainActor
 final class Caster: ObservableObject {
@@ -36,9 +37,10 @@ final class Caster: ObservableObject {
         scanSession = URLSession(configuration: quick)
 
         let normal = URLSessionConfiguration.ephemeral
-        normal.timeoutIntervalForRequest = 8
+        normal.timeoutIntervalForRequest = 20
         session = URLSession(configuration: normal)
 
+        Relay.shared.start()
         recents = defaults.stringArray(forKey: "recents") ?? []
         if let saved = defaults.string(forKey: "renderer"), let url = URL(string: saved) {
             Task { await connect(url, quiet: true) }
@@ -121,18 +123,27 @@ final class Caster: ObservableObject {
         defer { busy = false }
 
         let name = Self.title(for: url)
-        let detected = await detectMime(url)
+        var detected = await sniffMime(url)
+        if detected == nil { detected = await detectMime(url) }
+        let firstMime = detected ?? "video/x-matroska"
+
+        // Many TVs can't open HTTPS links, so the phone relays the video as plain HTTP.
+        guard let tvURL = await Relay.shared.prepare(upstream: url, mime: firstMime) else {
+            message = "Beam couldn't start its relay. Check Settings > Privacy & Security > Local Network > Beam is on, and that you're on wifi."
+            return
+        }
 
         // Stop whatever is playing; some TVs refuse a new link otherwise.
         _ = try? await SOAP.call("Stop", on: tv.avTransport, session: session)
 
         var lastError: Error?
         var accepted = false
-        for mime in Self.mimeCandidates(first: detected) {
+        for mime in Self.mimeCandidates(first: firstMime) {
+            Relay.shared.setMime(mime)
             do {
                 _ = try await SOAP.call("SetAVTransportURI", on: tv.avTransport, args: [
-                    ("CurrentURI", url.absoluteString),
-                    ("CurrentURIMetaData", SOAP.didl(url: url, title: name, mime: mime))
+                    ("CurrentURI", tvURL.absoluteString),
+                    ("CurrentURIMetaData", SOAP.didl(url: tvURL, title: name, mime: mime))
                 ], session: session)
                 accepted = true
                 break
@@ -164,7 +175,8 @@ final class Caster: ObservableObject {
         title = name
         position = 0
         duration = 0
-        message = "Playing on \(tv.name)."
+        UIApplication.shared.isIdleTimerDisabled = true
+        message = "Playing on \(tv.name). Keep Beam open while you watch."
         remember(url.absoluteString)
     }
 
@@ -190,6 +202,7 @@ final class Caster: ObservableObject {
         _ = try? await SOAP.call("Stop", on: tv.avTransport, session: session)
         nowPlaying = nil
         transportState = "STOPPED"
+        UIApplication.shared.isIdleTimerDisabled = false
         message = "Stopped."
     }
 
@@ -271,6 +284,29 @@ final class Caster: ObservableObject {
     }
 
     // MARK: File type
+
+    /// Reads the first few bytes of the file to tell MKV from MP4 etc.
+    /// (TorBox links have no extension and say "application/octet-stream").
+    private func sniffMime(_ url: URL) async -> String? {
+        var request = URLRequest(url: url)
+        request.setValue("bytes=0-63", forHTTPHeaderField: "Range")
+        request.timeoutInterval = 8
+        guard let (stream, _) = try? await session.bytes(for: request) else { return nil }
+        var head: [UInt8] = []
+        do {
+            for try await byte in stream {
+                head.append(byte)
+                if head.count >= 12 { break }
+            }
+        } catch {}
+        stream.task.cancel()
+        guard head.count >= 12 else { return nil }
+        if head[0] == 0x1A && head[1] == 0x45 && head[2] == 0xDF && head[3] == 0xA3 { return "video/x-matroska" }
+        if head[4] == 0x66 && head[5] == 0x74 && head[6] == 0x79 && head[7] == 0x70 { return "video/mp4" }
+        if head[0] == 0x52 && head[1] == 0x49 && head[2] == 0x46 && head[3] == 0x46 { return "video/x-msvideo" }
+        if head[0] == 0x47 { return "video/vnd.dlna.mpeg-tts" }
+        return nil
+    }
 
     /// Asks the server what the file is, falling back to the file extension.
     private func detectMime(_ url: URL) async -> String? {

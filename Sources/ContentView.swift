@@ -182,6 +182,10 @@ struct ContentView: View {
                     control("speaker.plus.fill", size: 20) { await caster.changeVolume(by: 2) }
                 }
             }
+
+            Text("Keep Beam open while you watch. The video passes through your phone, so the film stops if Beam is closed or the phone locks.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
